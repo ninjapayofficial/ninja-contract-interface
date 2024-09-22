@@ -5,6 +5,23 @@ const { ethers } = require('ethers');
 const axios = require('axios');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+// const { BigNumber } = require('ethers');
+
+// function bigIntToString(obj) {
+//   if (typeof obj === 'bigint' || BigNumber.isBigNumber(obj)) {
+//     return obj.toString();
+//   } else if (Array.isArray(obj)) {
+//     return obj.map(bigIntToString);
+//   } else if (typeof obj === 'object' && obj !== null) {
+//     const newObj = {};
+//     for (const key in obj) {
+//       newObj[key] = bigIntToString(obj[key]);
+//     }
+//     return newObj;
+//   } else {
+//     return obj;
+//   }
+// }
 
 
 const app = express();
@@ -36,7 +53,6 @@ app.post('/loadContract', async (req, res) => {
       if (response.data.status !== '1') {
         return res.status(400).json({ error: 'Unable to fetch ABI from Etherscan' });
       }
-      
 
       contractABI = JSON.parse(response.data.result);
     }
@@ -53,6 +69,38 @@ app.post('/loadContract', async (req, res) => {
   }
 });
 
+function bigIntToString(obj) {
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  } else if (Array.isArray(obj)) {
+    return obj.map(bigIntToString);
+  } else if (typeof obj === 'object' && obj !== null) {
+    const newObj = {};
+    for (const key in obj) {
+      newObj[key] = bigIntToString(obj[key]);
+    }
+    return newObj;
+  } else {
+    return obj;
+  }
+}
+
+
+// function bigIntToString(obj) {
+//   if (typeof obj === 'bigint' || BigNumber.isBigNumber(obj)) {
+//     return obj.toString();
+//   } else if (Array.isArray(obj)) {
+//     return obj.map(bigIntToString);
+//   } else if (typeof obj === 'object' && obj !== null) {
+//     const newObj = {};
+//     for (const key in obj) {
+//       newObj[key] = bigIntToString(obj[key]);
+//     }
+//     return newObj;
+//   } else {
+//     return obj;
+//   }
+// }
 
 app.post('/callFunction', async (req, res) => {
   const { contractAddress, functionName, params, privateKey } = req.body;
@@ -66,9 +114,16 @@ app.post('/callFunction', async (req, res) => {
 
     const abi = contractData.abi;
 
+
+
     // Connect to Ethereum node (e.g., Infura or Alchemy)
     const provider = ethers.getDefaultProvider('sepolia'); // Use your network 
-    // const provider = new ethers.providers.JsonRpcProvider('https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID');
+
+    // // Use a dedicated provider
+    // const provider = new ethers.providers.InfuraProvider('sepolia', {
+    //   projectId: 'YOUR_INFURA_PROJECT_ID',
+    //   projectSecret: 'YOUR_INFURA_PROJECT_SECRET',
+    // });
 
     let wallet;
     let contract;
@@ -102,20 +157,23 @@ app.post('/callFunction', async (req, res) => {
       result = await tx.wait();
     }
 
-    res.json({ result });
+    // Convert BigInt values to strings
+    const sanitizedResult = bigIntToString(result);
+    console.log('Raw result:', result);
+    console.log('Sanitized result:', sanitizedResult);
+
+    res.json({ result: sanitizedResult });
   } catch (error) {
     console.error('Error calling function:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-
 app.use(express.static('public'));
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
-
 
 
 

@@ -1,26 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Dynamic Contract Interface</title>
+  <title>Ninjapay Contract Interface</title>
+  <!-- Bootstrap CSS CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  <style>
+    body {
+      padding: 20px;
+    }
+    .load-btn {
+      background-color: #218aad;
+      color: white;
+    }
+    .nav-tabs .nav-link.active {
+      background-color: #218aad;
+      color: white;
+    }
+    .nav-tabs .nav-link {
+      color: #218aad;
+    }
+    .form-control, .form-select {
+      margin-bottom: 15px;
+    }
+    #resultDiv {
+      margin-top: 20px;
+    }
+    #result {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Dynamic Contract Interface</h1>
+  <h1 class="mb-4">Ninjapay Contract Interface</h1>
 
-  <div>
+  <div class="mb-4">
     <h2>Load Contract</h2>
-    <input type="text" id="contractAddress" placeholder="Contract Address" style="width: 300px;">
-    <button onclick="loadContract()">Load Contract</button>
+    <input
+      type="text"
+      id="contractAddress"
+      placeholder="Contract Address"
+      class="form-control"
+    >
+    <button class="load-btn" onclick="loadContract()">Load Contract</button>
   </div>
 
   <div id="functionsDiv" style="display: none;">
     <h2>Select Function</h2>
-    <select id="functionsSelect" onchange="displayFunctionInputs()" style="width: 300px;">
-    </select>
-
-    <div id="functionInputs">
+    <!-- Tabs for Read and Write functions -->
+    <ul class="nav nav-tabs" id="functionTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link active"
+          id="read-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#read"
+          type="button"
+          role="tab"
+          aria-controls="read"
+          aria-selected="true"
+        >Read Functions</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="write-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#write"
+          type="button"
+          role="tab"
+          aria-controls="write"
+          aria-selected="false"
+        >Write Functions</button>
+      </li>
+    </ul>
+    <div class="tab-content" id="functionTabsContent">
+      <!-- Read Functions Tab -->
+      <div
+        class="tab-pane fade show active"
+        id="read"
+        role="tabpanel"
+        aria-labelledby="read-tab"
+      >
+        <select
+          id="readFunctionsSelect"
+          onchange="displayFunctionInputs('read')"
+          class="form-select mt-3"
+        ></select>
+        <div id="readFunctionInputs"></div>
+        <button class="btn btn-success mt-2" onclick="callFunction('read')">Call Function</button>
+      </div>
+      <!-- Write Functions Tab -->
+      <div
+        class="tab-pane fade"
+        id="write"
+        role="tabpanel"
+        aria-labelledby="write-tab"
+      >
+        <select
+          id="writeFunctionsSelect"
+          onchange="displayFunctionInputs('write')"
+          class="form-select mt-3"
+        ></select>
+        <div id="writeFunctionInputs"></div>
+        <button class="btn btn-danger mt-2" onclick="callFunction('write')">Call Function</button>
+      </div>
     </div>
-
-    <button onclick="callFunction()">Call Function</button>
   </div>
 
   <div id="resultDiv">
@@ -28,9 +117,15 @@
     <pre id="result"></pre>
   </div>
 
+  <!-- Bootstrap JS and dependencies -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
   <script>
     let abi = [];
-    let functions = [];
+    let readFunctions = [];
+    let writeFunctions = [];
 
     async function loadContract() {
       const contractAddress = document.getElementById('contractAddress').value;
@@ -43,67 +138,96 @@
 
       const data = await response.json();
 
-
       if (data.error) {
         alert(data.error);
         return;
       }
 
       abi = data.abi;
-      functions = abi.filter(item => item.type === 'function');
+      const functions = abi.filter(item => item.type === 'function');
 
-      const functionsSelect = document.getElementById('functionsSelect');
-      functionsSelect.innerHTML = '';
+      // Separate read and write functions
+      readFunctions = functions.filter(
+        func => func.stateMutability === 'view' || func.stateMutability === 'pure'
+      );
+      writeFunctions = functions.filter(
+        func => func.stateMutability !== 'view' && func.stateMutability !== 'pure'
+      );
 
-      functions.forEach((func, index) => {
+      populateFunctionSelect('read');
+      populateFunctionSelect('write');
+
+      document.getElementById('functionsDiv').style.display = 'block';
+      displayFunctionInputs('read');
+      displayFunctionInputs('write');
+    }
+
+    function populateFunctionSelect(type) {
+      const selectElement = document.getElementById(`${type}FunctionsSelect`);
+      selectElement.innerHTML = '';
+
+      const funcs = type === 'read' ? readFunctions : writeFunctions;
+
+      funcs.forEach((func, index) => {
         const option = document.createElement('option');
         option.value = index;
         option.text = func.name;
-        functionsSelect.appendChild(option);
+        selectElement.appendChild(option);
       });
-
-      document.getElementById('functionsDiv').style.display = 'block';
-      displayFunctionInputs();
     }
 
-    function displayFunctionInputs() {
-      const index = document.getElementById('functionsSelect').value;
-      const func = functions[index];
+    function displayFunctionInputs(type) {
+      const index = document.getElementById(`${type}FunctionsSelect`).value;
+      const func = type === 'read' ? readFunctions[index] : writeFunctions[index];
 
-      const functionInputsDiv = document.getElementById('functionInputs');
+      const functionInputsDiv = document.getElementById(`${type}FunctionInputs`);
       functionInputsDiv.innerHTML = '';
 
       func.inputs.forEach((input, i) => {
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'mb-3';
+
         const label = document.createElement('label');
-        label.innerText = `${input.name} (${input.type}): `;
+        label.className = 'form-label';
+        label.innerText = `${input.name} (${input.type}):`;
+
         const inputField = document.createElement('input');
         inputField.type = 'text';
-        inputField.id = `param${i}`;
-        functionInputsDiv.appendChild(label);
-        functionInputsDiv.appendChild(inputField);
-        functionInputsDiv.appendChild(document.createElement('br'));
+        inputField.id = `${type}Param${i}`;
+        inputField.className = 'form-control';
+
+        inputGroup.appendChild(label);
+        inputGroup.appendChild(inputField);
+        functionInputsDiv.appendChild(inputGroup);
       });
 
-      if (func.stateMutability !== 'view' && func.stateMutability !== 'pure') {
+      if (type === 'write') {
         // If it's a write function, ask for private key
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'mb-3';
+
         const pkLabel = document.createElement('label');
-        pkLabel.innerText = 'Private Key: ';
+        pkLabel.className = 'form-label';
+        pkLabel.innerText = 'Private Key:';
+
         const pkField = document.createElement('input');
         pkField.type = 'password';
         pkField.id = 'privateKey';
-        functionInputsDiv.appendChild(pkLabel);
-        functionInputsDiv.appendChild(pkField);
-        functionInputsDiv.appendChild(document.createElement('br'));
+        pkField.className = 'form-control';
+
+        inputGroup.appendChild(pkLabel);
+        inputGroup.appendChild(pkField);
+        functionInputsDiv.appendChild(inputGroup);
       }
     }
 
-    async function callFunction() {
-      const index = document.getElementById('functionsSelect').value;
-      const func = functions[index];
+    async function callFunction(type) {
+      const index = document.getElementById(`${type}FunctionsSelect`).value;
+      const func = type === 'read' ? readFunctions[index] : writeFunctions[index];
       const params = [];
 
       func.inputs.forEach((input, i) => {
-        const value = document.getElementById(`param${i}`).value;
+        const value = document.getElementById(`${type}Param${i}`).value;
         params.push(value);
       });
 
@@ -113,8 +237,12 @@
         params
       };
 
-      if (func.stateMutability !== 'view' && func.stateMutability !== 'pure') {
+      if (type === 'write') {
         const privateKey = document.getElementById('privateKey').value;
+        if (!privateKey) {
+          alert('Private Key is required for write functions.');
+          return;
+        }
         body.privateKey = privateKey;
       }
 
