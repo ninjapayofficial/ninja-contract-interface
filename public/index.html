@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dynamic Contract Interface</title>
+</head>
+<body>
+  <h1>Dynamic Contract Interface</h1>
+
+  <div>
+    <h2>Load Contract</h2>
+    <input type="text" id="contractAddress" placeholder="Contract Address" style="width: 300px;">
+    <button onclick="loadContract()">Load Contract</button>
+  </div>
+
+  <div id="functionsDiv" style="display: none;">
+    <h2>Select Function</h2>
+    <select id="functionsSelect" onchange="displayFunctionInputs()" style="width: 300px;">
+    </select>
+
+    <div id="functionInputs">
+    </div>
+
+    <button onclick="callFunction()">Call Function</button>
+  </div>
+
+  <div id="resultDiv">
+    <h2>Result</h2>
+    <pre id="result"></pre>
+  </div>
+
+  <script>
+    let abi = [];
+    let functions = [];
+
+    async function loadContract() {
+      const contractAddress = document.getElementById('contractAddress').value;
+
+      const response = await fetch('/loadContract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractAddress })
+      });
+
+      const data = await response.json();
+
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      abi = data.abi;
+      functions = abi.filter(item => item.type === 'function');
+
+      const functionsSelect = document.getElementById('functionsSelect');
+      functionsSelect.innerHTML = '';
+
+      functions.forEach((func, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.text = func.name;
+        functionsSelect.appendChild(option);
+      });
+
+      document.getElementById('functionsDiv').style.display = 'block';
+      displayFunctionInputs();
+    }
+
+    function displayFunctionInputs() {
+      const index = document.getElementById('functionsSelect').value;
+      const func = functions[index];
+
+      const functionInputsDiv = document.getElementById('functionInputs');
+      functionInputsDiv.innerHTML = '';
+
+      func.inputs.forEach((input, i) => {
+        const label = document.createElement('label');
+        label.innerText = `${input.name} (${input.type}): `;
+        const inputField = document.createElement('input');
+        inputField.type = 'text';
+        inputField.id = `param${i}`;
+        functionInputsDiv.appendChild(label);
+        functionInputsDiv.appendChild(inputField);
+        functionInputsDiv.appendChild(document.createElement('br'));
+      });
+
+      if (func.stateMutability !== 'view' && func.stateMutability !== 'pure') {
+        // If it's a write function, ask for private key
+        const pkLabel = document.createElement('label');
+        pkLabel.innerText = 'Private Key: ';
+        const pkField = document.createElement('input');
+        pkField.type = 'password';
+        pkField.id = 'privateKey';
+        functionInputsDiv.appendChild(pkLabel);
+        functionInputsDiv.appendChild(pkField);
+        functionInputsDiv.appendChild(document.createElement('br'));
+      }
+    }
+
+    async function callFunction() {
+      const index = document.getElementById('functionsSelect').value;
+      const func = functions[index];
+      const params = [];
+
+      func.inputs.forEach((input, i) => {
+        const value = document.getElementById(`param${i}`).value;
+        params.push(value);
+      });
+
+      const body = {
+        contractAddress: document.getElementById('contractAddress').value,
+        functionName: func.name,
+        params
+      };
+
+      if (func.stateMutability !== 'view' && func.stateMutability !== 'pure') {
+        const privateKey = document.getElementById('privateKey').value;
+        body.privateKey = privateKey;
+      }
+
+      const response = await fetch('/callFunction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        document.getElementById('result').innerText = data.error;
+        return;
+      }
+
+      document.getElementById('result').innerText = JSON.stringify(data.result, null, 2);
+    }
+  </script>
+</body>
+</html>
