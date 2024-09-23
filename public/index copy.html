@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
   <title>Ninjapay Contract Interface</title>
@@ -48,25 +48,14 @@
     }
     .call-btn:hover {
       background-color: white;
-      color: #218aad;
+      color: #218aad; /* Darken on hover */
       border-color: #218aad;
     }
     /* Custom Selected Function */
     .selected-function {
-      background-color: #218aad;
+      background-color: #218aad; /* Your desired color */
       color: white;
       border-color: #218aad;
-    }
-    /* Connect Wallet Button */
-    .connect-btn {
-      background-color: #f6851b;
-      color: white;
-      border-color: #f6851b;
-    }
-    .connect-btn:hover {
-      background-color: #e2751b;
-      border-color: #e2751b;
-      color: white;
     }
   </style>
 </head>
@@ -82,10 +71,6 @@
       class="form-control"
     >
     <button class="load-btn mt-2" onclick="loadContract()">Load Contract</button>
-    <!-- Connect Wallet Button -->
-    <button id="connectWalletButton" class="connect-btn mt-2" onclick="connectWallet()">Connect Wallet</button>
-    <!-- Display Connected Account -->
-    <p id="walletAddress" style="margin-top: 10px;"></p>
   </div>
 
   <div id="functionsDiv" style="display: none;">
@@ -155,44 +140,17 @@
     </div>
   </div>
 
-  <!-- Include scripts at the end of the body -->
-  <!-- Ethers.js v5 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <!-- Bootstrap JS and dependencies -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
 
-  <!-- Your custom JavaScript code -->
   <script>
     let abi = [];
     let readFunctions = [];
     let writeFunctions = [];
     let selectedFunction = null;
     let selectedFunctionType = null; // 'read' or 'write'
-    let provider;
-    let signer;
-    let userAddress;
-
-    async function connectWallet() {
-      if (typeof window.ethereum !== 'undefined') {
-        try {
-          // Request account access
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-          // Initialize the provider and signer
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          signer = provider.getSigner();
-          userAddress = await signer.getAddress();
-
-          // Update the UI
-          document.getElementById('walletAddress').innerText = `Connected Wallet: ${userAddress}`;
-          document.getElementById('connectWalletButton').innerText = 'Wallet Connected';
-          document.getElementById('connectWalletButton').disabled = true;
-        } catch (error) {
-          console.error('Error connecting wallet:', error);
-          alert('Failed to connect wallet.');
-        }
-      } else {
-        alert('Please install MetaMask!');
-      }
-    }
 
     async function loadContract() {
       const contractAddress = document.getElementById('contractAddress').value.trim();
@@ -291,22 +249,24 @@
         inputGroup.appendChild(inputField);
         functionInputsDiv.appendChild(inputGroup);
       });
-    }
 
-    // Add the bigNumberToString helper function
-    function bigNumberToString(obj) {
-      if (ethers.BigNumber.isBigNumber(obj)) {
-        return obj.toString();
-      } else if (Array.isArray(obj)) {
-        return obj.map(bigNumberToString);
-      } else if (typeof obj === 'object' && obj !== null) {
-        const newObj = {};
-        for (const key in obj) {
-          newObj[key] = bigNumberToString(obj[key]);
-        }
-        return newObj;
-      } else {
-        return obj;
+      if (type === 'write') {
+        // If it's a write function, ask for private key
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'mb-3';
+
+        const pkLabel = document.createElement('label');
+        pkLabel.className = 'form-label';
+        pkLabel.innerText = 'Private Key:';
+
+        const pkField = document.createElement('input');
+        pkField.type = 'password';
+        pkField.id = 'privateKey';
+        pkField.className = 'form-control';
+
+        inputGroup.appendChild(pkLabel);
+        inputGroup.appendChild(pkField);
+        functionInputsDiv.appendChild(inputGroup);
       }
     }
 
@@ -325,59 +285,46 @@
         params.push(value);
       });
 
-      const contractAddress = document.getElementById('contractAddress').value;
+      const body = {
+        contractAddress: document.getElementById('contractAddress').value,
+        functionName: selectedFunction.name,
+        params
+      };
+
+      if (selectedFunctionType === 'write') {
+        const privateKey = document.getElementById('privateKey').value;
+        if (!privateKey) {
+          alert('Private Key is required for write functions.');
+          return;
+        }
+        body.privateKey = privateKey;
+      }
 
       // Disable the button to prevent multiple clicks
       const callButton = document.getElementById('callFunctionButton');
       callButton.disabled = true;
       callButton.innerText = 'Calling...';
 
-      try {
-        let result;
-        let contract;
-        if (selectedFunctionType === 'read') {
-          // Read function
-          const readProvider = ethers.getDefaultProvider('sepolia');
-          contract = new ethers.Contract(contractAddress, abi, readProvider);
-          result = await contract[selectedFunction.name](...params);
-        } else {
-          // Write function
-          if (!signer) {
-            alert('Please connect your wallet.');
-            callButton.disabled = false;
-            callButton.innerText = 'Call Function';
-            return;
-          }
-
-          contract = new ethers.Contract(contractAddress, abi, signer);
-
-          const txResponse = await contract[selectedFunction.name](...params);
-          document.getElementById('resultDiv').style.display = 'block';
-          document.getElementById('result').innerText = `Transaction sent: ${txResponse.hash}\nWaiting for confirmation...`;
-
-          const txReceipt = await txResponse.wait();
-          result = txReceipt;
-        }
-
-        // Convert BigNumber instances to strings
-        const sanitizedResult = bigNumberToString(result);
-
-        document.getElementById('resultDiv').style.display = 'block';
-        document.getElementById('result').innerText = JSON.stringify(sanitizedResult, null, 2);
-      } catch (error) {
-        console.error('Error calling function:', error);
-        document.getElementById('resultDiv').style.display = 'block';
-        document.getElementById('result').innerText = error.reason || error.message;
-      }
+      const response = await fetch('/callFunction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
 
       callButton.disabled = false;
       callButton.innerText = 'Call Function';
+
+      const data = await response.json();
+
+      if (data.error) {
+        document.getElementById('resultDiv').style.display = 'block';
+        document.getElementById('result').innerText = data.error;
+        return;
+      }
+
+      document.getElementById('resultDiv').style.display = 'block';
+      document.getElementById('result').innerText = JSON.stringify(data.result, null, 2);
     }
   </script>
-
-  <!-- Bootstrap JS and dependencies -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-  ></script>
 </body>
-</html>
+</html> -->
