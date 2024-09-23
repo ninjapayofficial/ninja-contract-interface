@@ -15,12 +15,12 @@
       background-color: #218aad;
       color: white;
     }
-    .nav-tabs .nav-link.active {
-      background-color: #218aad;
+    .nav-pills .nav-link.active {
+      background-color: #88a1ac;
       color: white;
     }
-    .nav-tabs .nav-link {
-      color: #218aad;
+    .nav-pills .nav-link {
+      color: #88a1ac;
     }
     .form-control, .form-select {
       margin-bottom: 15px;
@@ -32,6 +32,30 @@
       background-color: #f8f9fa;
       padding: 15px;
       border-radius: 5px;
+    }
+    .col-md-8 {
+      margin-top: 100px;
+    }
+    .function-list {
+      border-right: 1px solid #dee2e6;
+      padding-right: 15px;
+    }
+    /* Custom Call Function Button */
+    .call-btn {
+      background-color: #218aad;
+      color: white;
+      border-color: #000000;
+    }
+    .call-btn:hover {
+      background-color: white;
+      color: #218aad; /* Darken on hover */
+      border-color: #218aad;
+    }
+    /* Custom Selected Function */
+    .selected-function {
+      background-color: #218aad; /* Your desired color */
+      color: white;
+      border-color: #218aad;
     }
   </style>
 </head>
@@ -46,75 +70,74 @@
       placeholder="Contract Address"
       class="form-control"
     >
-    <button class="load-btn" onclick="loadContract()">Load Contract</button>
+    <button class="load-btn mt-2" onclick="loadContract()">Load Contract</button>
   </div>
 
   <div id="functionsDiv" style="display: none;">
-    <h2>Select Function</h2>
-    <!-- Tabs for Read and Write functions -->
-    <ul class="nav nav-tabs" id="functionTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button
-          class="nav-link active"
-          id="read-tab"
-          data-bs-toggle="tab"
-          data-bs-target="#read"
-          type="button"
-          role="tab"
-          aria-controls="read"
-          aria-selected="true"
-        >Read Functions</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button
-          class="nav-link"
-          id="write-tab"
-          data-bs-toggle="tab"
-          data-bs-target="#write"
-          type="button"
-          role="tab"
-          aria-controls="write"
-          aria-selected="false"
-        >Write Functions</button>
-      </li>
-    </ul>
-    <div class="tab-content" id="functionTabsContent">
-      <!-- Read Functions Tab -->
-      <div
-        class="tab-pane fade show active"
-        id="read"
-        role="tabpanel"
-        aria-labelledby="read-tab"
-      >
-        <select
-          id="readFunctionsSelect"
-          onchange="displayFunctionInputs('read')"
-          class="form-select mt-3"
-        ></select>
-        <div id="readFunctionInputs"></div>
-        <button class="btn btn-success mt-2" onclick="callFunction('read')">Call Function</button>
+    <div class="row">
+      <!-- Left Column: Function List -->
+      <div class="col-md-4">
+        <h2>Functions</h2>
+        <!-- Tabs for Read and Write functions -->
+        <ul class="nav nav-pills mb-3" id="functionTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="read-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#read-functions"
+              type="button"
+              role="tab"
+              aria-controls="read-functions"
+              aria-selected="true"
+            >Read</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="write-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#write-functions"
+              type="button"
+              role="tab"
+              aria-controls="write-functions"
+              aria-selected="false"
+            >Write</button>
+          </li>
+        </ul>
+        <div class="tab-content function-list" id="functionTabsContent">
+          <!-- Read Functions List -->
+          <div
+            class="tab-pane fade show active"
+            id="read-functions"
+            role="tabpanel"
+            aria-labelledby="read-tab"
+          >
+            <div id="readFunctionsList" class="list-group"></div>
+          </div>
+          <!-- Write Functions List -->
+          <div
+            class="tab-pane fade"
+            id="write-functions"
+            role="tabpanel"
+            aria-labelledby="write-tab"
+          >
+            <div id="writeFunctionsList" class="list-group"></div>
+          </div>
+        </div>
       </div>
-      <!-- Write Functions Tab -->
-      <div
-        class="tab-pane fade"
-        id="write"
-        role="tabpanel"
-        aria-labelledby="write-tab"
-      >
-        <select
-          id="writeFunctionsSelect"
-          onchange="displayFunctionInputs('write')"
-          class="form-select mt-3"
-        ></select>
-        <div id="writeFunctionInputs"></div>
-        <button class="btn btn-danger mt-2" onclick="callFunction('write')">Call Function</button>
+      <!-- Right Column: Function Details -->
+      <div class="col-md-8">
+        <h2 id="selectedFunctionName">Select a Function</h2>
+        <div id="functionInputs"></div>
+        <button id="callFunctionButton" class="btn call-btn mt-2 w-100" style="display: none;">Call Function</button>
+        <!-- Result -->
+        <div id="resultDiv" style="display: none;">
+          <h2>Result</h2>
+          <pre id="result"></pre>
+        </div>
       </div>
     </div>
-  </div>
-
-  <div id="resultDiv">
-    <h2>Result</h2>
-    <pre id="result"></pre>
   </div>
 
   <!-- Bootstrap JS and dependencies -->
@@ -126,9 +149,16 @@
     let abi = [];
     let readFunctions = [];
     let writeFunctions = [];
+    let selectedFunction = null;
+    let selectedFunctionType = null; // 'read' or 'write'
 
     async function loadContract() {
-      const contractAddress = document.getElementById('contractAddress').value;
+      const contractAddress = document.getElementById('contractAddress').value.trim();
+
+      if (!contractAddress) {
+        alert('Please enter a contract address.');
+        return;
+      }
 
       const response = await fetch('/loadContract', {
         method: 'POST',
@@ -154,36 +184,55 @@
         func => func.stateMutability !== 'view' && func.stateMutability !== 'pure'
       );
 
-      populateFunctionSelect('read');
-      populateFunctionSelect('write');
+      populateFunctionList('read');
+      populateFunctionList('write');
 
       document.getElementById('functionsDiv').style.display = 'block';
-      displayFunctionInputs('read');
-      displayFunctionInputs('write');
+      // Clear previous selections
+      selectedFunction = null;
+      selectedFunctionType = null;
+      document.getElementById('functionInputs').innerHTML = '';
+      document.getElementById('selectedFunctionName').innerText = 'Select a Function';
+      document.getElementById('callFunctionButton').style.display = 'none';
+      document.getElementById('resultDiv').style.display = 'none';
     }
 
-    function populateFunctionSelect(type) {
-      const selectElement = document.getElementById(`${type}FunctionsSelect`);
-      selectElement.innerHTML = '';
+    function populateFunctionList(type) {
+      const listElement = document.getElementById(`${type}FunctionsList`);
+      listElement.innerHTML = '';
 
       const funcs = type === 'read' ? readFunctions : writeFunctions;
 
       funcs.forEach((func, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.text = func.name;
-        selectElement.appendChild(option);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'list-group-item list-group-item-action';
+        button.innerText = func.name;
+        button.onclick = () => {
+          displayFunctionInputs(type, index);
+          // Highlight selected function
+          const buttons = listElement.getElementsByClassName('list-group-item');
+          for (let btn of buttons) {
+            btn.classList.remove('selected-function'); // Use custom class
+          }
+          button.classList.add('selected-function'); // Use custom class
+        };
+        listElement.appendChild(button);
       });
     }
 
-    function displayFunctionInputs(type) {
-      const index = document.getElementById(`${type}FunctionsSelect`).value;
-      const func = type === 'read' ? readFunctions[index] : writeFunctions[index];
+    function displayFunctionInputs(type, index) {
+      selectedFunctionType = type;
+      selectedFunction = type === 'read' ? readFunctions[index] : writeFunctions[index];
 
-      const functionInputsDiv = document.getElementById(`${type}FunctionInputs`);
+      const functionInputsDiv = document.getElementById('functionInputs');
       functionInputsDiv.innerHTML = '';
+      document.getElementById('selectedFunctionName').innerText = selectedFunction.name;
+      document.getElementById('callFunctionButton').style.display = 'inline-block';
+      document.getElementById('resultDiv').style.display = 'none';
+      document.getElementById('result').innerText = '';
 
-      func.inputs.forEach((input, i) => {
+      selectedFunction.inputs.forEach((input, i) => {
         const inputGroup = document.createElement('div');
         inputGroup.className = 'mb-3';
 
@@ -193,7 +242,7 @@
 
         const inputField = document.createElement('input');
         inputField.type = 'text';
-        inputField.id = `${type}Param${i}`;
+        inputField.id = `param${i}`;
         inputField.className = 'form-control';
 
         inputGroup.appendChild(label);
@@ -221,23 +270,28 @@
       }
     }
 
-    async function callFunction(type) {
-      const index = document.getElementById(`${type}FunctionsSelect`).value;
-      const func = type === 'read' ? readFunctions[index] : writeFunctions[index];
+    document.getElementById('callFunctionButton').addEventListener('click', callFunction);
+
+    async function callFunction() {
+      if (!selectedFunction) {
+        alert('Please select a function.');
+        return;
+      }
+
       const params = [];
 
-      func.inputs.forEach((input, i) => {
-        const value = document.getElementById(`${type}Param${i}`).value;
+      selectedFunction.inputs.forEach((input, i) => {
+        const value = document.getElementById(`param${i}`).value;
         params.push(value);
       });
 
       const body = {
         contractAddress: document.getElementById('contractAddress').value,
-        functionName: func.name,
+        functionName: selectedFunction.name,
         params
       };
 
-      if (type === 'write') {
+      if (selectedFunctionType === 'write') {
         const privateKey = document.getElementById('privateKey').value;
         if (!privateKey) {
           alert('Private Key is required for write functions.');
@@ -246,19 +300,29 @@
         body.privateKey = privateKey;
       }
 
+      // Disable the button to prevent multiple clicks
+      const callButton = document.getElementById('callFunctionButton');
+      callButton.disabled = true;
+      callButton.innerText = 'Calling...';
+
       const response = await fetch('/callFunction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
+      callButton.disabled = false;
+      callButton.innerText = 'Call Function';
+
       const data = await response.json();
 
       if (data.error) {
+        document.getElementById('resultDiv').style.display = 'block';
         document.getElementById('result').innerText = data.error;
         return;
       }
 
+      document.getElementById('resultDiv').style.display = 'block';
       document.getElementById('result').innerText = JSON.stringify(data.result, null, 2);
     }
   </script>
