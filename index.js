@@ -5,12 +5,14 @@ const { ethers, BigNumber } = require('ethers'); // Import BigNumber
 const axios = require('axios');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const { ThirdwebSDK } = require('@thirdweb-dev/sdk'); // Import thirdweb SDK
 
 const app = express();
 const port = 8080;
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.static('public'));
 
 let contracts = {};
 
@@ -83,7 +85,6 @@ app.post('/callFunction', async (req, res) => {
     const abi = contractData.abi;
 
     // Use a provider for read functions
-    // Connect to Ethereum node (e.g., Infura or Alchemy)
     const provider = ethers.getDefaultProvider('sepolia'); // Use your network
 
     const contract = new ethers.Contract(contractAddress, abi, provider);
@@ -119,7 +120,43 @@ app.post('/callFunction', async (req, res) => {
   }
 });
 
-app.use(express.static('public'));
+// Endpoint to deploy NFT contract
+app.post('/deployNFT', async (req, res) => {
+  const { name, symbol } = req.body;
+
+  try {
+    // Initialize the SDK with your private key and network
+    const sdk = ThirdwebSDK.fromPrivateKey(process.env.PRIVATE_KEY, "sepolia");
+
+    // Define the contract metadata
+    const contractMetadata = {
+      name: name,
+      symbol: symbol,
+      // Additional metadata can be added here
+      primary_sale_recipient: ethers.constants.AddressZero,
+      description: "This is Nin Token",
+      external_link: "https://ninjapay.in",
+      platform_fee_recipient: ethers.constants.AddressZero,
+      platform_fee_basis_points: 100, // 1%
+    };
+
+    // Deploy the NFT Collection contract
+    const contractAddress = await sdk.deployer.deployBuiltInContract(
+      "nft-collection",
+      contractMetadata,
+      "latest", // Use the latest version
+      {
+        gasLimit: 5000000, // Adjust gas limit as needed
+      }
+    );
+
+    console.log("NFT Contract deployed to:", contractAddress);
+    res.json({ message: "NFT Contract deployed successfully", contractAddress });
+  } catch (error) {
+    console.error("Error deploying NFT contract:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);

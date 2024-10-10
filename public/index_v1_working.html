@@ -1,0 +1,383 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+  <title>Ninjapay Contract Interface</title>
+  <!-- Bootstrap CSS CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  <style>
+    body {
+      padding: 20px;
+    }
+    .load-btn {
+      background-color: #218aad;
+      color: white;
+    }
+    .nav-pills .nav-link.active {
+      background-color: #88a1ac;
+      color: white;
+    }
+    .nav-pills .nav-link {
+      color: #88a1ac;
+    }
+    .form-control, .form-select {
+      margin-bottom: 15px;
+    }
+    #resultDiv {
+      margin-top: 20px;
+    }
+    #result {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .col-md-8 {
+      margin-top: 100px;
+    }
+    .function-list {
+      border-right: 1px solid #dee2e6;
+      padding-right: 15px;
+    }
+    /* Custom Call Function Button */
+    .call-btn {
+      background-color: #218aad;
+      color: white;
+      border-color: #000000;
+    }
+    .call-btn:hover {
+      background-color: white;
+      color: #218aad;
+      border-color: #218aad;
+    }
+    /* Custom Selected Function */
+    .selected-function {
+      background-color: #218aad;
+      color: white;
+      border-color: #218aad;
+    }
+    /* Connect Wallet Button */
+    .connect-btn {
+      background-color: #88a1ac;
+      color: white;
+      border-color: #88a1ac;
+    }
+    .connect-btn:hover {
+      background-color: #697b82;
+      border-color: #697b82;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="mb-4">Ninjapay Contract Interface</h1>
+
+  <div class="mb-4">
+    <h2>Load Contract</h2>
+    <input
+      type="text"
+      id="contractAddress"
+      placeholder="Contract Address"
+      class="form-control"
+    >
+    <button class="load-btn mt-2" onclick="loadContract()">Load Contract</button>
+    <!-- Connect Wallet Button -->
+    <button id="connectWalletButton" class="connect-btn mt-2" onclick="connectWallet()">Connect Wallet</button>
+    <!-- Display Connected Account -->
+    <p id="walletAddress" style="margin-top: 10px;"></p>
+  </div>
+
+  <div id="functionsDiv" style="display: none;">
+    <div class="row">
+      <!-- Left Column: Function List -->
+      <div class="col-md-4">
+        <h2>Functions</h2>
+        <!-- Tabs for Read and Write functions -->
+        <ul class="nav nav-pills mb-3" id="functionTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="read-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#read-functions"
+              type="button"
+              role="tab"
+              aria-controls="read-functions"
+              aria-selected="true"
+            >Read</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="write-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#write-functions"
+              type="button"
+              role="tab"
+              aria-controls="write-functions"
+              aria-selected="false"
+            >Write</button>
+          </li>
+        </ul>
+        <div class="tab-content function-list" id="functionTabsContent">
+          <!-- Read Functions List -->
+          <div
+            class="tab-pane fade show active"
+            id="read-functions"
+            role="tabpanel"
+            aria-labelledby="read-tab"
+          >
+            <div id="readFunctionsList" class="list-group"></div>
+          </div>
+          <!-- Write Functions List -->
+          <div
+            class="tab-pane fade"
+            id="write-functions"
+            role="tabpanel"
+            aria-labelledby="write-tab"
+          >
+            <div id="writeFunctionsList" class="list-group"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Right Column: Function Details -->
+      <div class="col-md-8">
+        <h2 id="selectedFunctionName">Select a Function</h2>
+        <div id="functionInputs"></div>
+        <button id="callFunctionButton" class="btn call-btn mt-2 w-100" style="display: none;">Call Function</button>
+        <!-- Result -->
+        <div id="resultDiv" style="display: none;">
+          <h2>Result</h2>
+          <pre id="result"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include scripts at the end of the body -->
+  <!-- Ethers.js v5 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <!-- Your custom JavaScript code -->
+  <script>
+    let abi = [];
+    let readFunctions = [];
+    let writeFunctions = [];
+    let selectedFunction = null;
+    let selectedFunctionType = null; // 'read' or 'write'
+    let provider;
+    let signer;
+    let userAddress;
+
+    async function connectWallet() {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          // Request account access
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+          // Initialize the provider and signer
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          userAddress = await signer.getAddress();
+
+          // Update the UI
+          document.getElementById('walletAddress').innerText = `Connected Wallet: ${userAddress}`;
+          document.getElementById('connectWalletButton').innerText = 'Wallet Connected';
+          document.getElementById('connectWalletButton').disabled = true;
+        } catch (error) {
+          console.error('Error connecting wallet:', error);
+          alert('Failed to connect wallet.');
+        }
+      } else {
+        alert('Please install MetaMask!');
+      }
+    }
+
+    async function loadContract() {
+      const contractAddress = document.getElementById('contractAddress').value.trim();
+
+      if (!contractAddress) {
+        alert('Please enter a contract address.');
+        return;
+      }
+
+      const response = await fetch('/loadContract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractAddress })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      abi = data.abi;
+      const functions = abi.filter(item => item.type === 'function');
+
+      // Separate read and write functions
+      readFunctions = functions.filter(
+        func => func.stateMutability === 'view' || func.stateMutability === 'pure'
+      );
+      writeFunctions = functions.filter(
+        func => func.stateMutability !== 'view' && func.stateMutability !== 'pure'
+      );
+
+      populateFunctionList('read');
+      populateFunctionList('write');
+
+      document.getElementById('functionsDiv').style.display = 'block';
+      // Clear previous selections
+      selectedFunction = null;
+      selectedFunctionType = null;
+      document.getElementById('functionInputs').innerHTML = '';
+      document.getElementById('selectedFunctionName').innerText = 'Select a Function';
+      document.getElementById('callFunctionButton').style.display = 'none';
+      document.getElementById('resultDiv').style.display = 'none';
+    }
+
+    function populateFunctionList(type) {
+      const listElement = document.getElementById(`${type}FunctionsList`);
+      listElement.innerHTML = '';
+
+      const funcs = type === 'read' ? readFunctions : writeFunctions;
+
+      funcs.forEach((func, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'list-group-item list-group-item-action';
+        button.innerText = func.name;
+        button.onclick = () => {
+          displayFunctionInputs(type, index);
+          // Highlight selected function
+          const buttons = listElement.getElementsByClassName('list-group-item');
+          for (let btn of buttons) {
+            btn.classList.remove('selected-function'); // Use custom class
+          }
+          button.classList.add('selected-function'); // Use custom class
+        };
+        listElement.appendChild(button);
+      });
+    }
+
+    function displayFunctionInputs(type, index) {
+      selectedFunctionType = type;
+      selectedFunction = type === 'read' ? readFunctions[index] : writeFunctions[index];
+
+      const functionInputsDiv = document.getElementById('functionInputs');
+      functionInputsDiv.innerHTML = '';
+      document.getElementById('selectedFunctionName').innerText = selectedFunction.name;
+      document.getElementById('callFunctionButton').style.display = 'inline-block';
+      document.getElementById('resultDiv').style.display = 'none';
+      document.getElementById('result').innerText = '';
+
+      selectedFunction.inputs.forEach((input, i) => {
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'mb-3';
+
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.innerText = `${input.name} (${input.type}):`;
+
+        const inputField = document.createElement('input');
+        inputField.type = 'text';
+        inputField.id = `param${i}`;
+        inputField.className = 'form-control';
+
+        inputGroup.appendChild(label);
+        inputGroup.appendChild(inputField);
+        functionInputsDiv.appendChild(inputGroup);
+      });
+    }
+
+    // Add the bigNumberToString helper function
+    function bigNumberToString(obj) {
+      if (ethers.BigNumber.isBigNumber(obj)) {
+        return obj.toString();
+      } else if (Array.isArray(obj)) {
+        return obj.map(bigNumberToString);
+      } else if (typeof obj === 'object' && obj !== null) {
+        const newObj = {};
+        for (const key in obj) {
+          newObj[key] = bigNumberToString(obj[key]);
+        }
+        return newObj;
+      } else {
+        return obj;
+      }
+    }
+
+    document.getElementById('callFunctionButton').addEventListener('click', callFunction);
+
+    async function callFunction() {
+      if (!selectedFunction) {
+        alert('Please select a function.');
+        return;
+      }
+
+      const params = [];
+
+      selectedFunction.inputs.forEach((input, i) => {
+        const value = document.getElementById(`param${i}`).value;
+        params.push(value);
+      });
+
+      const contractAddress = document.getElementById('contractAddress').value;
+
+      // Disable the button to prevent multiple clicks
+      const callButton = document.getElementById('callFunctionButton');
+      callButton.disabled = true;
+      callButton.innerText = 'Calling...';
+
+      try {
+        let result;
+        let contract;
+        if (selectedFunctionType === 'read') {
+          // Read function
+          const readProvider = ethers.getDefaultProvider('sepolia');
+          contract = new ethers.Contract(contractAddress, abi, readProvider);
+          result = await contract[selectedFunction.name](...params);
+        } else {
+          // Write function
+          if (!signer) {
+            alert('Please connect your wallet.');
+            callButton.disabled = false;
+            callButton.innerText = 'Call Function';
+            return;
+          }
+
+          contract = new ethers.Contract(contractAddress, abi, signer);
+
+          const txResponse = await contract[selectedFunction.name](...params);
+          document.getElementById('resultDiv').style.display = 'block';
+          document.getElementById('result').innerText = `Transaction sent: ${txResponse.hash}\nWaiting for confirmation...`;
+
+          const txReceipt = await txResponse.wait();
+          result = txReceipt;
+        }
+
+        // Convert BigNumber instances to strings
+        const sanitizedResult = bigNumberToString(result);
+
+        document.getElementById('resultDiv').style.display = 'block';
+        document.getElementById('result').innerText = JSON.stringify(sanitizedResult, null, 2);
+      } catch (error) {
+        console.error('Error calling function:', error);
+        document.getElementById('resultDiv').style.display = 'block';
+        document.getElementById('result').innerText = error.reason || error.message;
+      }
+
+      callButton.disabled = false;
+      callButton.innerText = 'Call Function';
+    }
+  </script>
+
+  <!-- Bootstrap JS and dependencies -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+</body>
+</html> -->

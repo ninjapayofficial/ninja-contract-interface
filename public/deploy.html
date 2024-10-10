@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Deploy ERC721A Token</title>
+  <!-- Bootstrap CSS CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  <style>
+    body {
+      padding: 20px;
+    }
+    .deploy-btn {
+      background-color: #28a745;
+      color: white;
+    }
+    .deploy-btn:hover {
+      background-color: #218838;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="mb-4">Deploy ERC721A Token</h1>
+
+  <div class="mb-4">
+    <h2>Token Details</h2>
+    <input type="text" id="tokenName" placeholder="Token Name" class="form-control mb-2">
+    <input type="text" id="tokenSymbol" placeholder="Token Symbol" class="form-control mb-2">
+    <!-- Add any other parameters you need -->
+    <button id="deployTokenButton" class="deploy-btn mt-2" onclick="deployToken()">Deploy Token</button>
+  </div>
+
+  <!-- Include scripts at the end of the body -->
+  <!-- Ethers.js v6 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.min.js"></script>
+  <!-- Thirdweb SDK -->
+  <script src="https://unpkg.com/@thirdweb-dev/sdk@latest/dist/thirdweb.min.js"></script>
+  <!-- Your custom JavaScript code -->
+  <script>
+    // Initialize provider and signer
+    let provider;
+    let signer;
+
+    async function connectWallet() {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          provider = new ethers.BrowserProvider(window.ethereum);
+          signer = await provider.getSigner();
+        } catch (error) {
+          console.error('Error connecting wallet:', error);
+          alert('Failed to connect wallet.');
+        }
+      } else {
+        alert('Please install MetaMask!');
+      }
+    }
+
+    async function deployToken() {
+      // Connect wallet if not connected
+      if (!signer) {
+        await connectWallet();
+      }
+
+      const tokenName = document.getElementById('tokenName').value;
+      const tokenSymbol = document.getElementById('tokenSymbol').value;
+
+      if (!tokenName || !tokenSymbol) {
+        alert('Please enter token name and symbol.');
+        return;
+      }
+
+      try {
+        // Initialize the thirdweb SDK
+        const sdk = new thirdweb.ThirdwebSDK(signer, {
+          chain: 'sepolia', // Specify the network if needed
+        });
+
+        // Define the contract metadata
+        const contractMetadata = {
+          name: tokenName,
+          symbol: tokenSymbol,
+          // You can add more metadata as needed
+        };
+
+        // Deploy the ERC721A contract (using NFT Drop)
+        const contractAddress = await sdk.deployer.deployNFTDrop(contractMetadata);
+
+        alert('Contract deployed at address: ' + contractAddress);
+      } catch (error) {
+        console.error('Error deploying contract:', error);
+        alert('Failed to deploy contract: ' + error.message);
+      }
+    }
+  </script>
+
+  <!-- Bootstrap JS and dependencies -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+</body>
+</html>
