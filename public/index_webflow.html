@@ -1,0 +1,765 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>NINJAPAY CONTRACT INTERFACE</title>
+  
+  <!-- Bootstrap CSS CDN -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  
+  <style>
+    body {
+      padding: 20px;
+      background-color: #eef6fd;
+      font-family: Arial, sans-serif;
+    }
+    .load-btn {
+      background-color: #218aad;
+      color: white;
+    }
+    .nav-pills .nav-link.active {
+      background-color: #88a1ac;
+      color: white;
+    }
+    .nav-pills .nav-link {
+      color: #88a1ac;
+    }
+    .form-control, .form-select {
+      margin-bottom: 15px;
+    }
+    #resultDiv {
+      margin-top: 20px;
+    }
+    #result {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .col-md-8 {
+      margin-top: 20px;
+    }
+    .function-list {
+      border-right: 1px solid #dee2e6;
+      padding-right: 15px;
+    }
+    /* Custom Call Function Button */
+    .call-btn {
+      background-color: #218aad;
+      color: white;
+      border-color: #000000;
+    }
+    .call-btn:hover {
+      background-color: white;
+      color: #218aad;
+      border-color: #218aad;
+    }
+    /* Custom Selected Function */
+    .selected-function {
+      background-color: #218aad;
+      color: white;
+      border-color: #218aad;
+    }
+    /* Connect Wallet Button */
+    .connect-btn {
+      background-color: #88a1ac;
+      color: white;
+      border-color: #88a1ac;
+    }
+    .connect-btn:hover {
+      background-color: #697b82;
+      border-color: #697b82;
+      color: white;
+    }
+    /* Deploy Button */
+    .deploy-btn {
+      background-color: #28a745;
+      color: white;
+      border-color: #28a745;
+    }
+    .deploy-btn:hover {
+      background-color: #218838;
+      border-color: #1e7e34;
+      color: white;
+    }
+    /* Loader Styles */
+    .loader {
+      border: 8px solid #f3f3f3; /* Light grey */
+      border-top: 8px solid #16869a; /* Consistent color */
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 2s linear infinite;
+      margin: 20px auto;
+      display: none;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Alert Styles */
+    .alert-position {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 250px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mb-4">NINJAPAY CONTRACT INTERFACE</h1>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-position"></div>
+
+    <!-- Load Contract Section -->
+    <div class="mb-4">
+      <h2>Load Contract</h2>
+      <input
+        type="text"
+        id="contractAddress"
+        placeholder="Contract Address"
+        class="form-control"
+      >
+      <button class="load-btn" id="loadContractButton">Load Contract</button>
+      <!-- Network Selection Dropdown -->
+      <label for="networkSelect" class="form-label">Select Network:</label>
+      <select id="networkSelect" class="form-select">
+        <option value="sepolia">Sepolia</option>
+        <option value="goerli">Goerli</option>
+        <option value="mainnet">Mainnet</option>
+      </select>
+      <!-- Connect Wallet Button -->
+      <button id="connectWalletButton" class="connect-btn">Connect Wallet</button>
+      <!-- Display Connected Account -->
+      <p id="walletAddress" style="margin-top: 10px;"></p>
+      <!-- Loader -->
+      <div id="loader" class="loader"></div>
+    </div>
+
+    <!-- Deploy Contract Section -->
+    <div class="mb-4">
+      <h2>Deploy Contract</h2>
+      <input type="text" id="tokenName" placeholder="Token Name" class="form-control mb-2">
+      <input type="text" id="tokenSymbol" placeholder="Token Symbol" class="form-control mb-2">
+      <!-- Add any other parameters you need -->
+      <button id="deployTokenButton" class="deploy-btn mt-2">Deploy Token</button>
+    </div>
+
+    <!-- Functions Section -->
+    <div id="functionsDiv" style="display: none;">
+      <div class="row">
+        <!-- Left Column: Function List -->
+        <div class="col-md-4">
+          <h2>Functions</h2>
+          <!-- Tabs for Read and Write functions -->
+          <ul class="nav nav-pills mb-3" id="functionTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link active"
+                id="read-tab"
+                data-bs-toggle="pill"
+                data-bs-target="#read-functions"
+                type="button"
+                role="tab"
+                aria-controls="read-functions"
+                aria-selected="true"
+              >Read</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link"
+                id="write-tab"
+                data-bs-toggle="pill"
+                data-bs-target="#write-functions"
+                type="button"
+                role="tab"
+                aria-controls="write-functions"
+                aria-selected="false"
+              >Write</button>
+            </li>
+          </ul>
+          <div class="tab-content function-list" id="functionTabsContent">
+            <!-- Read Functions List -->
+            <div
+              class="tab-pane fade show active"
+              id="read-functions"
+              role="tabpanel"
+              aria-labelledby="read-tab"
+            >
+              <div id="readFunctionsList" class="list-group"></div>
+            </div>
+            <!-- Write Functions List -->
+            <div
+              class="tab-pane fade"
+              id="write-functions"
+              role="tabpanel"
+              aria-labelledby="write-tab"
+            >
+              <div id="writeFunctionsList" class="list-group"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Right Column: Function Details -->
+        <div class="col-md-8">
+          <h2 id="selectedFunctionName">Select a Function</h2>
+          <div id="functionInputs"></div>
+          <button id="callFunctionButton" class="btn call-btn mt-2 w-100" style="display: none;">Call Function</button>
+          <!-- Result -->
+          <div id="resultDiv" style="display: none;">
+            <h2>Result</h2>
+            <pre id="result"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS and dependencies -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+  <!-- Custom JavaScript as ES Module -->
+  <script type="module">
+    // Import Thirdweb SDK and ethers.js using esm.sh
+    import { ThirdwebSDK } from 'https://esm.sh/@thirdweb-dev/sdk@4.0.99?bundle';
+    import { ethers } from 'https://esm.sh/ethers@5.7.2';
+
+    document.addEventListener('DOMContentLoaded', function() {
+      let abi = [];
+      let readFunctions = [];
+      let writeFunctions = [];
+      let selectedFunction = null;
+      let selectedFunctionType = null; // 'read' or 'write'
+      let provider;
+      let signer;
+      let userAddress;
+      let sdkInstance; // Initialize the SDK variable
+
+      // Hardcoded API Keys (Replace with your actual keys)
+      const ETHERSCAN_API_KEY = 'TZU9YP9Y15NI9W9TYHV6NGFZ78IVBKJ1WZ'; // Replace with your Etherscan API Key
+      const THIRDWEB_CLIENT_ID = '690062c61fec9aa02c8f0d8d84e2dc99'; // Replace with your Thirdweb Client ID
+      const THIRDWEB_SECRET_KEY = 'WA7-QDoWghPpkIgjmKWtvUGSOgzD9c06_lDqUzcEK50o_9bdGo9u5fGm1aAp7lBRqdxp0fJ74NFRWeIp0ahTiA'; // Replace with your Thirdweb Secret Key
+
+      // Map network names to chain IDs and Etherscan URLs
+      const networkConfig = {
+        sepolia: {
+          chainId: '0xaa36a7',
+          etherscanUrl: 'https://sepolia.etherscan.io',
+        },
+        goerli: {
+          chainId: '0x5',
+          etherscanUrl: 'https://goerli.etherscan.io',
+        },
+        mainnet: {
+          chainId: '0x1',
+          etherscanUrl: 'https://etherscan.io',
+        }
+      };
+
+      // Function to display alerts
+      function showAlert(message, type='success') {
+        const alertContainer = document.getElementById('alertContainer');
+        const alertId = `alert-${Date.now()}`;
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.role = 'alert';
+        alert.id = alertId;
+        alert.innerHTML = `
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        alertContainer.appendChild(alert);
+
+        // Automatically remove the alert after 5 seconds
+        setTimeout(() => {
+          const alertElement = document.getElementById(alertId);
+          if (alertElement) {
+            const bsAlert = new bootstrap.Alert(alertElement);
+            bsAlert.close();
+          }
+        }, 5000);
+      }
+
+      // Initialize Thirdweb SDK
+      function initializeThirdwebSDK() {
+        if (!signer) {
+          console.warn("Signer not available. Please connect your wallet first.");
+          return;
+        }
+        try {
+          // Initialize SDK with clientId and secretKey
+          sdkInstance = new ThirdwebSDK(signer, {
+            clientId: THIRDWEB_CLIENT_ID,
+            secretKey: THIRDWEB_SECRET_KEY
+          });
+          console.log("Thirdweb SDK initialized:", sdkInstance);
+          showAlert("Thirdweb SDK initialized successfully.", "success");
+        } catch (error) {
+          console.error("Failed to initialize Thirdweb SDK:", error);
+          showAlert(`Failed to initialize SDK: ${error.message || error}`, "danger");
+        }
+      }
+
+      // Event listeners for buttons
+      document.getElementById('connectWalletButton').addEventListener('click', connectWallet);
+      document.getElementById('deployTokenButton').addEventListener('click', deployToken);
+      document.getElementById('loadContractButton').addEventListener('click', loadContract);
+      document.getElementById('callFunctionButton').addEventListener('click', callFunction);
+
+      // Function to connect wallet and switch network
+      async function connectWallet() {
+        const connectButton = document.getElementById('connectWalletButton');
+        const loader = document.getElementById('loader');
+        const message = document.getElementById('walletAddress');
+
+        connectButton.disabled = true;
+        connectButton.innerText = 'Connecting...';
+        message.innerText = '';
+        loader.style.display = 'block';
+
+        const networkSelect = document.getElementById('networkSelect');
+        const selectedNetwork = networkSelect.value;
+        const config = networkConfig[selectedNetwork];
+
+        if (!config) {
+          showAlert('Unsupported network selected.', 'danger');
+          connectButton.disabled = false;
+          connectButton.innerText = 'Connect Wallet';
+          loader.style.display = 'none';
+          return;
+        }
+
+        try {
+          if (!window.ethereum) {
+            showAlert('Please install MetaMask!', 'warning');
+            connectButton.disabled = false;
+            connectButton.innerText = 'Connect Wallet';
+            loader.style.display = 'none';
+            return;
+          }
+
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+
+          // Attempt to switch to the selected network
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: config.chainId }],
+            });
+            console.log(`Switched to ${selectedNetwork} network.`);
+            showAlert(`Switched to ${selectedNetwork} network.`, 'success');
+          } catch (switchError) {
+            // This error code indicates that the chain has not been added to MetaMask.
+            if (switchError.code === 4902) {
+              showAlert(`The ${selectedNetwork} network is not available in your MetaMask. Please add it manually.`, 'danger');
+            } else {
+              console.error('Failed to switch network:', switchError);
+              showAlert('Failed to switch network.', 'danger');
+            }
+            connectButton.disabled = false;
+            connectButton.innerText = 'Connect Wallet';
+            loader.style.display = 'none';
+            return;
+          }
+
+          // Now connect the wallet
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          userAddress = await signer.getAddress();
+
+          // Initialize Thirdweb SDK with the signer and credentials
+          initializeThirdwebSDK();
+
+          // Update the UI
+          message.innerHTML = `Connected Wallet: <strong>${userAddress}</strong>`;
+          connectButton.innerText = 'Wallet Connected';
+          showAlert('Wallet connected successfully.', 'success');
+
+          // Listen for network changes
+          window.ethereum.on('chainChanged', handleNetworkChange);
+          window.ethereum.on('accountsChanged', handleAccountsChanged);
+
+        } catch (error) {
+          console.error('Error connecting wallet:', error);
+          showAlert('Failed to connect wallet.', 'danger');
+          connectButton.disabled = false;
+          connectButton.innerText = 'Connect Wallet';
+        } finally {
+          loader.style.display = 'none';
+        }
+      }
+
+      // Handle network changes
+      async function handleNetworkChange(chainId) {
+        console.log(`Network changed to ${chainId}`);
+        showAlert('Network changed. Please reconnect your wallet.', 'info');
+        // Reset the state
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        sdkInstance = null;
+        document.getElementById('walletAddress').innerHTML = '';
+        document.getElementById('connectWalletButton').innerText = 'Connect Wallet';
+        document.getElementById('connectWalletButton').disabled = false;
+        document.getElementById('functionsDiv').style.display = 'none';
+        document.getElementById('resultDiv').style.display = 'none';
+        document.getElementById('functionInputs').innerHTML = '';
+        document.getElementById('selectedFunctionName').innerText = 'Select a Function';
+        document.getElementById('callFunctionButton').style.display = 'none';
+      }
+
+      // Handle account changes
+      async function handleAccountsChanged(accounts) {
+        if (accounts.length === 0) {
+          // MetaMask is locked or the user has not connected any accounts
+          showAlert('Please connect to MetaMask.', 'warning');
+          signer = null;
+          sdkInstance = null;
+          document.getElementById('walletAddress').innerHTML = '';
+          document.getElementById('connectWalletButton').innerText = 'Connect Wallet';
+          document.getElementById('connectWalletButton').disabled = false;
+          document.getElementById('functionsDiv').style.display = 'none';
+          document.getElementById('resultDiv').style.display = 'none';
+          document.getElementById('functionInputs').innerHTML = '';
+          document.getElementById('selectedFunctionName').innerText = 'Select a Function';
+          document.getElementById('callFunctionButton').style.display = 'none';
+        } else {
+          userAddress = accounts[0];
+          document.getElementById('walletAddress').innerHTML = `Connected Wallet: <strong>${userAddress}</strong>`;
+          showAlert('Account changed.', 'info');
+        }
+      }
+
+      // Function to deploy token
+      async function deployToken() {
+        const tokenName = document.getElementById('tokenName').value.trim();
+        const tokenSymbol = document.getElementById('tokenSymbol').value.trim();
+
+        if (!tokenName || !tokenSymbol) {
+          showAlert('Please enter both token name and symbol.', 'warning');
+          return;
+        }
+
+        if (!signer) {
+          showAlert('Please connect your wallet first.', 'warning');
+          return;
+        }
+
+        if (!sdkInstance) {
+          showAlert('Thirdweb SDK not initialized. Please connect your wallet.', 'warning');
+          return;
+        }
+
+        // Show loader
+        document.getElementById('loader').style.display = 'block';
+
+        try {
+          // Define the contract metadata
+          const contractMetadata = {
+            name: tokenName,
+            symbol: tokenSymbol,
+            primary_sale_recipient: ethers.constants.AddressZero, // Set to your address or any recipient
+            description: "This is Nin Token",
+            external_link: "https://ninjapay.in",
+            platform_fee_basis_points: 100, // 1%
+            image: "https://example.com/your-image.png" // Replace with your image URL
+          };
+
+          // Deploy the ERC20 Token contract using Thirdweb SDK
+          const contractAddress = await sdkInstance.deployer.deployBuiltInContract(
+            "token", // Change from "nft-collection" to "token" for ERC20
+            contractMetadata,
+            "5.0.2", // Specify the version if needed
+            {
+              gasLimit: 5000000, // Set a higher gas limit if needed
+            }
+          );
+
+          console.log("Token Contract deployed to:", contractAddress);
+          showAlert(`Token Contract deployed to: ${contractAddress}`, 'success');
+
+          // Determine Etherscan link based on network
+          const network = await provider.getNetwork();
+          let etherscanLink = '';
+          if (network.chainId === 11155111) { // Sepolia
+            etherscanLink = `https://sepolia.etherscan.io/address/${contractAddress}`;
+          } else if (network.chainId === 5) { // Goerli
+            etherscanLink = `https://goerli.etherscan.io/address/${contractAddress}`;
+          } else if (network.chainId === 1) { // Mainnet
+            etherscanLink = `https://etherscan.io/address/${contractAddress}`;
+          }
+          // Add more conditions for additional networks if needed
+
+          showAlert(`View on Etherscan: <a href="${etherscanLink}" target="_blank">${etherscanLink}</a>`, 'info');
+        } catch (error) {
+          console.error('Error deploying contract:', error);
+          showAlert(`Failed to deploy contract: ${error.message || error}`, 'danger');
+        } finally {
+          // Hide loader
+          document.getElementById('loader').style.display = 'none';
+        }
+      }
+
+      // Function to load contract
+      async function loadContract() {
+        const contractAddress = document.getElementById('contractAddress').value.trim();
+
+        if (!contractAddress) {
+          showAlert('Please enter a contract address.', 'warning');
+          return;
+        }
+
+        if (!signer || !provider) {
+          showAlert('Please connect your wallet first.', 'warning');
+          return;
+        }
+
+        // Show loader
+        document.getElementById('loader').style.display = 'block';
+
+        try {
+          // Determine the network from provider
+          const network = await provider.getNetwork();
+          let apiUrl = '';
+          if (network.chainId === 11155111) { // Sepolia
+            apiUrl = `https://api-sepolia.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
+          } else if (network.chainId === 5) { // Goerli
+            apiUrl = `https://api-goerli.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
+          } else if (network.chainId === 1) { // Mainnet
+            apiUrl = `https://api.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
+          } else {
+            throw new Error('Unsupported network.');
+          }
+
+          // Fetch ABI from Etherscan
+          const response = await fetch(apiUrl);
+          const data = await response.json();
+
+          if (data.status !== '1') {
+            throw new Error(data.result || 'Failed to fetch ABI');
+          }
+
+          abi = JSON.parse(data.result);
+          const functions = abi.filter(item => item.type === 'function');
+
+          if (functions.length === 0) {
+            showAlert('No functions found in the contract ABI.', 'warning');
+            document.getElementById('functionsDiv').style.display = 'none';
+            return;
+          }
+
+          // Separate read and write functions
+          readFunctions = functions.filter(
+            func => func.stateMutability === 'view' || func.stateMutability === 'pure'
+          );
+          writeFunctions = functions.filter(
+            func => func.stateMutability !== 'view' && func.stateMutability !== 'pure'
+          );
+
+          if (readFunctions.length === 0 && writeFunctions.length === 0) {
+            showAlert('No callable functions found in the contract.', 'warning');
+            document.getElementById('functionsDiv').style.display = 'none';
+            return;
+          }
+
+          populateFunctionList('read');
+          populateFunctionList('write');
+
+          document.getElementById('functionsDiv').style.display = 'block';
+          // Clear previous selections
+          selectedFunction = null;
+          selectedFunctionType = null;
+          document.getElementById('functionInputs').innerHTML = '';
+          document.getElementById('selectedFunctionName').innerText = 'Select a Function';
+          document.getElementById('callFunctionButton').style.display = 'none';
+
+          showAlert('Contract loaded successfully.', 'success');
+        } catch (error) {
+          console.error('Error loading contract:', error);
+          showAlert(`Failed to load contract: ${error.message || error}`, 'danger');
+          document.getElementById('functionsDiv').style.display = 'none';
+        } finally {
+          // Hide loader
+          document.getElementById('loader').style.display = 'none';
+        }
+      }
+
+      // Function to populate function list
+      function populateFunctionList(type) {
+        const listElement = document.getElementById(`${type}FunctionsList`);
+        listElement.innerHTML = '';
+
+        const funcs = type === 'read' ? readFunctions : writeFunctions;
+
+        if (funcs.length === 0) {
+          const noFunc = document.createElement('div');
+          noFunc.className = 'list-group-item';
+          noFunc.innerText = `No ${type} functions available.`;
+          listElement.appendChild(noFunc);
+          return;
+        }
+
+        funcs.forEach((func, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'list-group-item list-group-item-action';
+          button.innerText = func.name;
+          button.onclick = () => {
+            displayFunctionInputs(type, index);
+            // Highlight selected function
+            const buttons = listElement.getElementsByClassName('list-group-item');
+            for (let btn of buttons) {
+              btn.classList.remove('selected-function'); // Use custom class
+            }
+            button.classList.add('selected-function'); // Use custom class
+          };
+          listElement.appendChild(button);
+        });
+      }
+
+      // Function to display function inputs
+      function displayFunctionInputs(type, index) {
+        selectedFunctionType = type;
+        selectedFunction = type === 'read' ? readFunctions[index] : writeFunctions[index];
+
+        const functionInputsDiv = document.getElementById('functionInputs');
+        functionInputsDiv.innerHTML = '';
+        document.getElementById('selectedFunctionName').innerText = selectedFunction.name;
+        document.getElementById('callFunctionButton').style.display = 'inline-block';
+        document.getElementById('resultDiv').style.display = 'none';
+        document.getElementById('result').innerText = '';
+
+        if (selectedFunction.inputs.length === 0) {
+          // No inputs required
+          return;
+        }
+
+        selectedFunction.inputs.forEach((input, i) => {
+          const inputGroup = document.createElement('div');
+          inputGroup.className = 'mb-3';
+
+          const label = document.createElement('label');
+          label.className = 'form-label';
+          label.innerText = `${input.name || 'Parameter'} (${input.type}):`;
+
+          const inputField = document.createElement('input');
+          inputField.type = 'text';
+          inputField.id = `param${i}`;
+          inputField.className = 'form-control';
+          inputField.placeholder = `Enter ${input.type}`;
+
+          inputGroup.appendChild(label);
+          inputGroup.appendChild(inputField);
+          functionInputsDiv.appendChild(inputGroup);
+        });
+      }
+
+      // Function to convert BigNumber to string recursively
+      function bigNumberToString(obj) {
+        if (ethers.BigNumber.isBigNumber(obj)) {
+          return obj.toString();
+        } else if (Array.isArray(obj)) {
+          return obj.map(bigNumberToString);
+        } else if (typeof obj === 'object' && obj !== null) {
+          const newObj = {};
+          for (const key in obj) {
+            newObj[key] = bigNumberToString(obj[key]);
+          }
+          return newObj;
+        } else {
+          return obj;
+        }
+      }
+
+      // Function to call contract function
+      async function callFunction() {
+        if (!selectedFunction) {
+          showAlert('Please select a function.', 'warning');
+          return;
+        }
+
+        const params = [];
+
+        for (let i = 0; i < selectedFunction.inputs.length; i++) {
+          const input = selectedFunction.inputs[i];
+          const value = document.getElementById(`param${i}`).value.trim();
+          if (value === '') {
+            showAlert(`Please enter a value for ${input.name || 'parameter'} (${input.type}).`, 'warning');
+            return;
+          }
+          params.push(value);
+        }
+
+        const contractAddress = document.getElementById('contractAddress').value.trim();
+
+        // Disable the button to prevent multiple clicks
+        const callButton = document.getElementById('callFunctionButton');
+        callButton.disabled = true;
+        callButton.innerText = 'Calling...';
+        document.getElementById('resultDiv').style.display = 'none';
+        document.getElementById('result').innerText = '';
+
+        try {
+          let result;
+          let contract;
+
+          if (selectedFunctionType === 'read') {
+            // Read function using Web3Provider(window.ethereum)
+            const readProvider = new ethers.providers.Web3Provider(window.ethereum);
+            contract = new ethers.Contract(contractAddress, abi, readProvider);
+            console.log(`Calling read function: ${selectedFunction.name} with params:`, params);
+            result = await contract[selectedFunction.name](...params);
+            console.log('Read function result:', result);
+          } else {
+            // Write function using signer
+            if (!signer) {
+              showAlert('Please connect your wallet.', 'warning');
+              callButton.disabled = false;
+              callButton.innerText = 'Call Function';
+              return;
+            }
+
+            contract = new ethers.Contract(contractAddress, abi, signer);
+            console.log(`Calling write function: ${selectedFunction.name} with params:`, params);
+            const txResponse = await contract[selectedFunction.name](...params);
+            showAlert(`Transaction sent: ${txResponse.hash}\nWaiting for confirmation...`, 'info');
+            document.getElementById('resultDiv').style.display = 'block';
+            document.getElementById('result').innerText = `Transaction sent: ${txResponse.hash}\nWaiting for confirmation...`;
+
+            console.log('Transaction sent. Waiting for confirmation...');
+            const txReceipt = await txResponse.wait();
+            console.log('Transaction confirmed:', txReceipt);
+            result = txReceipt;
+          }
+
+          // Convert BigNumber instances to strings
+          const sanitizedResult = bigNumberToString(result);
+
+          document.getElementById('resultDiv').style.display = 'block';
+          document.getElementById('result').innerText = JSON.stringify(sanitizedResult, null, 2);
+          showAlert('Function executed successfully.', 'success');
+        } catch (error) {
+          console.error('Error calling function:', error);
+          showAlert(`Error: ${error.reason || error.message || 'An error occurred.'}`, 'danger');
+          document.getElementById('resultDiv').style.display = 'block';
+          document.getElementById('result').innerText = error.reason || error.message || 'An error occurred.';
+        } finally {
+          callButton.disabled = false;
+          callButton.innerText = 'Call Function';
+        }
+      }
+    });
+  </script>
+</body>
+</html> -->
