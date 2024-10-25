@@ -1,4 +1,4 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -284,18 +284,21 @@
           chainIdDecimal: 11155111,
           name: 'Sepolia',
           etherscanUrl: 'https://sepolia.etherscan.io',
+          apiBaseUrl: 'https://api-sepolia.etherscan.io/api',
         },
         goerli: {
           chainId: '0x5',
           chainIdDecimal: 5,
           name: 'Goerli',
           etherscanUrl: 'https://goerli.etherscan.io',
+          apiBaseUrl: 'https://api-goerli.etherscan.io/api',
         },
         mainnet: {
           chainId: '0x1',
           chainIdDecimal: 1,
           name: 'Mainnet',
           etherscanUrl: 'https://etherscan.io',
+          apiBaseUrl: 'https://api.etherscan.io/api',
         }
       };
 
@@ -351,6 +354,7 @@
 
       // Function to connect wallet and switch network
       async function connectWallet() {
+        console.log('Connect Wallet function called');
         const connectButton = document.getElementById('connectWalletButton');
         const loader = document.getElementById('loader');
         const message = document.getElementById('walletAddress');
@@ -566,16 +570,12 @@
         try {
           // Determine the network from provider
           const network = await provider.getNetwork();
-          let apiUrl = '';
-          if (network.chainId === 11155111) { // Sepolia
-            apiUrl = `https://api-sepolia.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
-          } else if (network.chainId === 5) { // Goerli
-            apiUrl = `https://api-goerli.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
-          } else if (network.chainId === 1) { // Mainnet
-            apiUrl = `https://api.etherscan.io/api?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
-          } else {
+          const networkData = networkConfig[network.name.toLowerCase()];
+          if (!networkData) {
             throw new Error('Unsupported network.');
           }
+
+          const apiUrl = `${networkData.apiBaseUrl}?module=contract&action=getabi&address=${contractAddress}&apikey=${ETHERSCAN_API_KEY}`;
 
           // Fetch ABI from Etherscan
           const response = await fetch(apiUrl);
@@ -644,6 +644,7 @@
           // 1. Get the deployer address
           const deployer = await getDeployerAddress(contractAddress, network);
           document.getElementById('deployedBy').innerText = deployer || 'Unknown';
+          console.log('Deployer Address:', deployer);
 
           // 2. Get contract name and symbol
           const contract = new ethers.Contract(contractAddress, abi, provider);
@@ -678,7 +679,7 @@
         }
       }
 
-      // Function to get the deployer address by fetching the first transaction
+      // Function to get the deployer address by fetching internal transactions and external transaction details
       async function getDeployerAddress(contractAddress, network) {
         try {
           const networkData = networkConfig[network.name.toLowerCase()];
@@ -687,21 +688,41 @@
             return 'Unknown';
           }
 
-          // Fetch all transactions to the contract address, sorted ascending
-          const txListUrl = `${networkData.etherscanUrl}/api?module=account&action=txlist&address=${contractAddress}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
+          const apiBaseUrl = networkData.apiBaseUrl;
 
-          const response = await fetch(txListUrl);
-          const data = await response.json();
+          // Fetch internal transactions
+          const txListUrl = `${apiBaseUrl}?module=account&action=txlistinternal&address=${contractAddress}&startblock=0&endblock=99999999&sort=asc&apikey=${ETHERSCAN_API_KEY}`;
+          const txResponse = await fetch(txListUrl);
+          const txData = await txResponse.json();
 
-          if (data.status !== '1' || data.result.length === 0) {
-            console.warn('No transactions found for the contract:', data.message);
+          if (txData.status !== '1' || txData.result.length === 0) {
+            console.warn('No internal transactions found for the contract:', txData.message);
             return 'Unknown';
           }
 
-          // The first transaction is the contract creation
-          const creationTx = data.result[0];
-          const deployerAddress = creationTx.from;
+          // Find the contract creation transaction
+          const creationTx = txData.result.find(tx => tx.contractAddress && tx.contractAddress.toLowerCase() === contractAddress.toLowerCase());
+
+          if (!creationTx) {
+            console.warn('Contract creation transaction not found in internal transactions.');
+            return 'Unknown';
+          }
+
+          const txHash = creationTx.hash;
+
+          // Now get the external transaction details
+          const txDetailsUrl = `${apiBaseUrl}?module=proxy&action=eth_getTransactionByHash&txhash=${txHash}&apikey=${ETHERSCAN_API_KEY}`;
+          const txDetailsResponse = await fetch(txDetailsUrl);
+          const txDetailsData = await txDetailsResponse.json();
+
+          if (!txDetailsData.result) {
+            console.warn('Failed to get transaction details.');
+            return 'Unknown';
+          }
+
+          const deployerAddress = txDetailsData.result.from;
           return deployerAddress;
+
         } catch (error) {
           console.error('Error fetching deployer address:', error);
           return 'Unknown';
@@ -875,4 +896,4 @@
     });
   </script>
 </body>
-</html> -->
+</html>
